@@ -1,0 +1,6 @@
+flask
+pandas
+numpy==1.16.0
+gunicorn
+tensorflow
+keras
