@@ -1,55 +1,53 @@
-from flask import Flask,render_template,url_for,request
-import pandas as pd 
-import pickle
-import pandas as pd
-import numpy as np
-from keras.preprocessing.sequence import pad_sequences
-from keras.models import load_model
+import os
+from flask import Flask, render_template, request
+from translator import engine
+
+app = Flask(__name__)
 
 
-# app = Flask(__name__)
-
-# @app.route('/')
-# def home():
-# 	return render_template('home.html')
-
-# @app.route('/predict',methods=['POST'])
-# def predict():
-# 	model= load_model(spam_classifier.h5)
-# 	tokenizer = pickle.load("tokenizer.pkl")
-# 	if request.method == 'POST':
-# 		message = request.form['message']
-# 		data = [message]
-# 		X = tokenizer.texts_to_sequences(data)
-# 		X = pad_sequences(X, maxlen=100)
-# 		my_prediction = model.predict_classes(X).flatten()[0]
-# 	return render_template('result.html',prediction = my_prediction)
+# Pre-load the translation index at startup so the first request isn't slow.
+# This runs in the background once the Flask dev server starts.
+def _preload():
+    try:
+        engine.load()
+    except Exception as exc:
+        print(f"[app] Warning: could not pre-load translation engine: {exc}")
 
 
+@app.before_request
+def ensure_engine():
+    if not engine._ready:
+        engine.load()
 
-# if __name__ == '__main__':
-# 	app.run(debug=True)
 
-@app.route('/translate', methods=['POST', 'GET'])
+@app.route("/", methods=["GET"])
+def home():
+    return render_template("main.html")
+
+
+@app.route("/translate", methods=["GET", "POST"])
 def get_translation():
-    if request.method == 'POST':
- 
-        result = request.form
-        # Get the English sentence from the Input site
-        engSentence = str(result['input_text'])
-        # Converting the text into the required format for prediction
-        # Step 1 : Converting to an array
-        engAr = [engSentence]
-        # Clean the input sentence
-        cleanText = cleanInput(engAr)
-        # Step 2 : Converting to sequences and padding them
-        # Encode the inputsentence as sequence of integers
-        seq1 = encode_sequences(Eng_tokenizer, int(Eng_stdlen), cleanText)
-        # Step 3 : Get the translation
-        translation = generatePredictions(model,Amh_tokenizer,seq1)
-        # prediction = model.predict(seq1,verbose=0)[0]
- 
-        return render_template('result.html', trans=translation)
+    if request.method == "POST":
+        eng_sentence = request.form.get("input_text", "").strip()
+        if not eng_sentence:
+            return render_template("main.html", error="Please enter a sentence to translate.")
+        try:
+            result = engine.translate(eng_sentence)
+        except Exception as exc:
+            return render_template("main.html", error=f"Translation error: {exc}")
 
-if __name__ == '__main__':
-	app.run(debug=True)
+        return render_template(
+            "result.html",
+            original=eng_sentence,
+            trans=result["translation"],
+            method=result["method"],
+            score=result["score"],
+            matched_en=result.get("matched_en", ""),
+        )
+
+    return render_template("main.html")
+
+
+if __name__ == "__main__":
+    _preload()
+    app.run(debug=True)

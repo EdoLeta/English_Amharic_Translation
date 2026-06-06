@@ -1,0 +1,179 @@
+/* ── Reset & base ─────────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font: 16px/1.6 "Segoe UI", Arial, Helvetica, sans-serif;
+  background: #f0f2f5;
+  color: #333;
+  min-height: 100vh;
+}
+
+/* ── Header ───────────────────────────────────────────────── */
+header {
+  background: linear-gradient(135deg, #0288d1, #01579b);
+  color: #fff;
+  padding: 24px 0 20px;
+  box-shadow: 0 2px 6px rgba(0,0,0,.25);
+}
+
+#brandname {
+  font-size: 1.6rem;
+  font-weight: 700;
+  letter-spacing: .5px;
+  margin-bottom: 4px;
+}
+
+header h2 {
+  font-size: 1rem;
+  font-weight: 400;
+  opacity: .85;
+}
+
+/* ── Layout ───────────────────────────────────────────────── */
+.container {
+  max-width: 760px;
+  margin: 0 auto;
+  padding: 0 20px;
+}
+
+main.container {
+  margin-top: 40px;
+}
+
+/* ── Card ─────────────────────────────────────────────────── */
+.card {
+  background: #fff;
+  border-radius: 10px;
+  padding: 32px;
+  box-shadow: 0 2px 12px rgba(0,0,0,.1);
+}
+
+.card h3 {
+  font-size: 1.2rem;
+  margin-bottom: 20px;
+  color: #01579b;
+}
+
+/* ── Form ─────────────────────────────────────────────────── */
+label {
+  display: block;
+  font-weight: 600;
+  margin-bottom: 8px;
+}
+
+textarea {
+  width: 100%;
+  padding: 12px;
+  border: 1px solid #ccc;
+  border-radius: 6px;
+  font-size: 1rem;
+  resize: vertical;
+  transition: border-color .2s;
+}
+
+textarea:focus {
+  outline: none;
+  border-color: #0288d1;
+  box-shadow: 0 0 0 3px rgba(2,136,209,.15);
+}
+
+/* ── Buttons ──────────────────────────────────────────────── */
+.btn-primary {
+  display: inline-block;
+  margin-top: 16px;
+  padding: 11px 28px;
+  background: #0288d1;
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  font-size: 1rem;
+  cursor: pointer;
+  transition: background .2s;
+  text-decoration: none;
+}
+
+.btn-primary:hover { background: #0277bd; }
+
+.btn-secondary {
+  display: inline-block;
+  margin-top: 20px;
+  padding: 10px 24px;
+  background: #e0e0e0;
+  color: #333;
+  border-radius: 6px;
+  font-size: .95rem;
+  text-decoration: none;
+  transition: background .2s;
+}
+
+.btn-secondary:hover { background: #bdbdbd; }
+
+/* ── Result blocks ────────────────────────────────────────── */
+.result-block {
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  padding: 18px 20px;
+  margin-bottom: 16px;
+}
+
+.result-block--amharic {
+  border-color: #0288d1;
+  background: #e1f5fe;
+}
+
+.result-label {
+  font-size: .8rem;
+  text-transform: uppercase;
+  letter-spacing: .8px;
+  color: #777;
+  margin-bottom: 8px;
+}
+
+.result-block--amharic .result-label { color: #0277bd; }
+
+.result-text {
+  font-size: 1.15rem;
+  line-height: 1.7;
+}
+
+.result-text.amharic {
+  font-size: 1.3rem;
+  color: #01579b;
+}
+
+/* ── Match block ──────────────────────────────────────────── */
+.result-block--match {
+  border-color: #bdbdbd;
+  background: #fafafa;
+}
+
+.small-text { font-size: .95rem; color: #555; }
+
+/* ── Method badge ─────────────────────────────────────────── */
+.method-badge {
+  display: inline-block;
+  margin: 12px 0 20px;
+  padding: 5px 14px;
+  border-radius: 20px;
+  font-size: .8rem;
+  font-weight: 600;
+  letter-spacing: .4px;
+}
+
+.method-exact       { background: #e8f5e9; color: #2e7d32; }
+.method-memory      { background: #e3f2fd; color: #1565c0; }
+.method-word-lookup { background: #fff8e1; color: #f57f17; }
+
+/* ── Alert ────────────────────────────────────────────────── */
+.alert {
+  border-radius: 6px;
+  padding: 12px 16px;
+  margin-bottom: 20px;
+  font-size: .95rem;
+}
+
+.alert-error {
+  background: #ffebee;
+  color: #c62828;
+  border: 1px solid #ef9a9a;
+}

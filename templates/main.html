@@ -1,52 +1,37 @@
-<!-- <!DOCTYPE html> 
-<html>
+<!DOCTYPE html>
+<html lang="en">
 <head>
-	<title>Home</title>
-	<link rel="stylesheet" type="text/css" href="../static/css/styles.css">
-	<link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='css/styles.css') }}">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>English → Amharic Translator</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}" />
 </head>
 <body>
+  <header>
+    <div class="container">
+      <div id="brandname">English → Amharic Translator</div>
+      <h2>Neural Machine Translation</h2>
+    </div>
+  </header>
 
-	<header>
-		<div class="container">
-		<div id="brandname">
-			Machine Learning App with Flask
-		</div>
-		<h2>Spam Detector For Emails</h2>
-		
-	</div>
-	</header>
+  <main class="container">
+    {% if error %}
+    <div class="alert alert-error">{{ error }}</div>
+    {% endif %}
 
-	<div class="ml-container">
-
-		<form action="{{ url_for('predict')}}" method="POST">
-		<p>Enter Your email Here</p>
-			<input type="text" name="comment"/>
-		<textarea name="Emails" rows="4" cols="50"></textarea>
-		<br/>
-
-		<input type="submit" class="btn-info" value="predict">
-		
-	</form>		
-	</div>
-
-</body>
-</html> -->
-
-
-<!DOCTYPE html>
- 
-<html>
-<title>Machine Translation APP</title>
-<body>
-<form action = "/translate" method= "POST">
- 
-    <h3> English Sentence: </h3>
- 
-    <th> <input name='input_text' type="text" value = " " /> </th>
- 
-    <p><input type = "submit" value = "submit" /></p>
- 
-</form>
+    <div class="card">
+      <h3>Translate English to Amharic (አማርኛ)</h3>
+      <form action="/translate" method="POST">
+        <label for="input_text">English sentence:</label>
+        <textarea
+          id="input_text"
+          name="input_text"
+          rows="4"
+          placeholder="Enter your English text here…"
+        ></textarea>
+        <button type="submit" class="btn-primary">Translate →</button>
+      </form>
+    </div>
+  </main>
 </body>
 </html>

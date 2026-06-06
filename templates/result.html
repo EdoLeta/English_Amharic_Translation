@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Translation Result</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}" />
+</head>
+<body>
+  <header>
+    <div class="container">
+      <div id="brandname">English → Amharic Translator</div>
+      <h2>Translation Result</h2>
+    </div>
+  </header>
+
+  <main class="container">
+    <div class="card">
+
+      <div class="result-block">
+        <h4 class="result-label">English (Original)</h4>
+        <p class="result-text">{{ original }}</p>
+      </div>
+
+      <div class="result-block result-block--amharic">
+        <h4 class="result-label">Amharic Translation (አማርኛ)</h4>
+        <p class="result-text amharic">{{ trans }}</p>
+      </div>
+
+      {% if matched_en and matched_en != original %}
+      <div class="result-block result-block--match">
+        <h4 class="result-label">Closest corpus match ({{ "%.0f"|format(score * 100) }}% similarity)</h4>
+        <p class="result-text small-text">{{ matched_en }}</p>
+      </div>
+      {% endif %}
+
+      <div class="method-badge method-{{ method }}">
+        {% if method == "exact" %}
+          ✓ Exact match in corpus
+        {% elif method == "memory" %}
+          ~ Translation memory ({{ "%.0f"|format(score * 100) }}% match)
+        {% else %}
+          ≈ Word-level alignment
+        {% endif %}
+      </div>
+
+      <a href="/" class="btn-secondary">← Translate another sentence</a>
+    </div>
+  </main>
+</body>
+</html>
