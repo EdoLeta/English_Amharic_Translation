@@ -3,13 +3,13 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>English → Amharic Translator</title>
+  <title>English ↔ Amharic Translator</title>
   <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}" />
 </head>
 <body>
   <header>
     <div class="container">
-      <div id="brandname">English → Amharic Translator</div>
+      <div id="brandname">English ↔ Amharic Translator</div>
       <h2>Neural Machine Translation</h2>
     </div>
   </header>
@@ -20,18 +20,43 @@
     {% endif %}
 
     <div class="card">
-      <h3>Translate English to Amharic (አማርኛ)</h3>
       <form action="/translate" method="POST">
-        <label for="input_text">English sentence:</label>
+        <div class="direction-toggle">
+          <label class="radio {{ 'active' if direction != 'am-en' else '' }}">
+            <input type="radio" name="direction" value="en-am"
+                   {{ 'checked' if direction != 'am-en' else '' }} />
+            English → Amharic
+          </label>
+          <label class="radio {{ 'active' if direction == 'am-en' else '' }}">
+            <input type="radio" name="direction" value="am-en"
+                   {{ 'checked' if direction == 'am-en' else '' }} />
+            Amharic → English
+          </label>
+        </div>
+
+        <label for="input_text">Enter text:</label>
         <textarea
           id="input_text"
           name="input_text"
           rows="4"
-          placeholder="Enter your English text here…"
+          placeholder="Type your sentence here…"
         ></textarea>
+
         <button type="submit" class="btn-primary">Translate →</button>
       </form>
     </div>
   </main>
+
+  <script>
+    // visually highlight the selected direction
+    document.querySelectorAll('.direction-toggle input').forEach(function (input) {
+      input.addEventListener('change', function () {
+        document.querySelectorAll('.direction-toggle .radio').forEach(function (l) {
+          l.classList.remove('active');
+        });
+        this.closest('.radio').classList.add('active');
+      });
+    });
+  </script>
 </body>
 </html>

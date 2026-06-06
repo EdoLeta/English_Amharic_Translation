@@ -9,7 +9,7 @@
 <body>
   <header>
     <div class="container">
-      <div id="brandname">English → Amharic Translator</div>
+      <div id="brandname">English ↔ Amharic Translator</div>
       <h2>Translation Result</h2>
     </div>
   </header>
@@ -18,32 +18,17 @@
     <div class="card">
 
       <div class="result-block">
-        <h4 class="result-label">English (Original)</h4>
-        <p class="result-text">{{ original }}</p>
+        <h4 class="result-label">{{ source_lang }} (Original)</h4>
+        <p class="result-text {{ 'amharic' if source_lang == 'Amharic' else '' }}">{{ original }}</p>
       </div>
 
-      <div class="result-block result-block--amharic">
-        <h4 class="result-label">Amharic Translation (አማርኛ)</h4>
-        <p class="result-text amharic">{{ trans }}</p>
+      <div class="result-block result-block--target">
+        <h4 class="result-label">{{ target_lang }} Translation</h4>
+        <p class="result-text {{ 'amharic' if target_lang == 'Amharic' else '' }}">{{ translation }}</p>
       </div>
 
-      {% if matched_en and matched_en != original %}
-      <div class="result-block result-block--match">
-        <h4 class="result-label">Closest corpus match ({{ "%.0f"|format(score * 100) }}% similarity)</h4>
-        <p class="result-text small-text">{{ matched_en }}</p>
-      </div>
-      {% endif %}
-
-      <div class="method-badge method-{{ method }}">
-        {% if method == "neural" %}
-          ✦ Neural translation (Helsinki-NLP/opus-mt-en-am)
-        {% elif method == "exact" %}
-          ✓ Exact match in corpus
-        {% elif method == "memory" %}
-          ~ Translation memory ({{ "%.0f"|format(score * 100) }}% match)
-        {% else %}
-          ≈ Word-level alignment
-        {% endif %}
+      <div class="method-badge method-neural">
+        ✦ Neural translation — Helsinki-NLP/opus-mt-{{ direction }}
       </div>
 
       <a href="/" class="btn-secondary">← Translate another sentence</a>

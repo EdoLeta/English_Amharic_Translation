@@ -1,53 +1,38 @@
-import os
 from flask import Flask, render_template, request
-from translator import engine
+from translator import engine, DIRECTION_LABELS
 
 app = Flask(__name__)
 
-
-# Pre-load the translation index at startup so the first request isn't slow.
-# This runs in the background once the Flask dev server starts.
-def _preload():
-    try:
-        engine.load()
-    except Exception as exc:
-        print(f"[app] Warning: could not pre-load translation engine: {exc}")
-
-
-@app.before_request
-def ensure_engine():
-    if not engine._ready:
-        engine.load()
+VALID_DIRECTIONS = set(DIRECTION_LABELS.keys())
 
 
 @app.route("/", methods=["GET"])
 def home():
-    return render_template("main.html")
+    return render_template("main.html", direction="en-am")
 
 
 @app.route("/translate", methods=["GET", "POST"])
 def get_translation():
-    if request.method == "POST":
-        eng_sentence = request.form.get("input_text", "").strip()
-        if not eng_sentence:
-            return render_template("main.html", error="Please enter a sentence to translate.")
-        try:
-            result = engine.translate(eng_sentence)
-        except Exception as exc:
-            return render_template("main.html", error=f"Translation error: {exc}")
+    if request.method != "POST":
+        return render_template("main.html", direction="en-am")
 
-        return render_template(
-            "result.html",
-            original=eng_sentence,
-            trans=result["translation"],
-            method=result["method"],
-            score=result["score"],
-            matched_en=result.get("matched_en", ""),
-        )
+    direction = request.form.get("direction", "en-am")
+    if direction not in VALID_DIRECTIONS:
+        direction = "en-am"
 
-    return render_template("main.html")
+    text = request.form.get("input_text", "").strip()
+    if not text:
+        return render_template("main.html", direction=direction,
+                               error="Please enter some text to translate.")
+
+    try:
+        result = engine.translate(text, direction=direction)
+    except Exception as exc:
+        return render_template("main.html", direction=direction,
+                               error=f"Translation error: {exc}")
+
+    return render_template("result.html", **result)
 
 
 if __name__ == "__main__":
-    _preload()
     app.run(debug=True)

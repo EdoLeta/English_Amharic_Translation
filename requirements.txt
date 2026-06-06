@@ -1,9 +1,5 @@
 flask
 gunicorn
-pandas
-numpy
-scikit-learn
-scipy
 transformers>=4.30.0
 sentencepiece
 torch

@@ -94,6 +94,37 @@ textarea:focus {
 
 .btn-primary:hover { background: #0277bd; }
 
+/* ── Direction toggle ─────────────────────────────────────── */
+.direction-toggle {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 22px;
+}
+
+.direction-toggle .radio {
+  flex: 1;
+  text-align: center;
+  padding: 10px 12px;
+  border: 1px solid #ccc;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: .95rem;
+  font-weight: 600;
+  color: #555;
+  transition: all .15s;
+  user-select: none;
+}
+
+.direction-toggle .radio:hover { border-color: #0288d1; }
+
+.direction-toggle .radio.active {
+  border-color: #0288d1;
+  background: #e3f2fd;
+  color: #01579b;
+}
+
+.direction-toggle input { display: none; }
+
 .btn-secondary {
   display: inline-block;
   margin-top: 20px;
@@ -116,7 +147,7 @@ textarea:focus {
   margin-bottom: 16px;
 }
 
-.result-block--amharic {
+.result-block--target {
   border-color: #0288d1;
   background: #e1f5fe;
 }
@@ -129,7 +160,7 @@ textarea:focus {
   margin-bottom: 8px;
 }
 
-.result-block--amharic .result-label { color: #0277bd; }
+.result-block--target .result-label { color: #0277bd; }
 
 .result-text {
   font-size: 1.15rem;
@@ -138,16 +169,9 @@ textarea:focus {
 
 .result-text.amharic {
   font-size: 1.3rem;
-  color: #01579b;
 }
 
-/* ── Match block ──────────────────────────────────────────── */
-.result-block--match {
-  border-color: #bdbdbd;
-  background: #fafafa;
-}
-
-.small-text { font-size: .95rem; color: #555; }
+.result-block--target .result-text { color: #01579b; }
 
 /* ── Method badge ─────────────────────────────────────────── */
 .method-badge {
@@ -161,9 +185,6 @@ textarea:focus {
 }
 
 .method-neural      { background: #f3e5f5; color: #6a1b9a; }
-.method-exact       { background: #e8f5e9; color: #2e7d32; }
-.method-memory      { background: #e3f2fd; color: #1565c0; }
-.method-word-lookup { background: #fff8e1; color: #f57f17; }
 
 /* ── Alert ────────────────────────────────────────────────── */
 .alert {

@@ -1,184 +1,70 @@
 """
-English→Amharic translation engine.
+Bidirectional English ↔ Amharic neural translation engine.
 
-Primary:  Helsinki-NLP/opus-mt-en-am  (MarianMT neural model via transformers)
-Fallback: TF-IDF translation memory on the 31 K Bible corpus, used only
-          when transformers / torch are not installed.
+Uses Helsinki-NLP MarianMT models (trained on diverse multilingual data,
+not Bible text):
+    en → am :  Helsinki-NLP/opus-mt-en-am
+    am → en :  Helsinki-NLP/opus-mt-am-en
 
-Install for neural translation:
+Models are loaded lazily (only when first used) and cached in-process.
+First use downloads the weights (~300 MB each) and caches them locally.
+
+Install:
     pip3 install transformers sentencepiece torch
 """
 
 from __future__ import annotations
-import re
-import unicodedata
-import pickle
-from collections import defaultdict
-from pathlib import Path
 
-import numpy as np
-import pandas as pd
+MODELS = {
+    "en-am": "Helsinki-NLP/opus-mt-en-am",
+    "am-en": "Helsinki-NLP/opus-mt-am-en",
+}
 
-_HERE        = Path(__file__).parent
-_CORPUS_PATH = _HERE / "data" / "en_am.csv"
-_CACHE_PATH  = _HERE / "data" / "translation_cache.pkl"
+DIRECTION_LABELS = {
+    "en-am": ("English", "Amharic"),
+    "am-en": ("Amharic", "English"),
+}
 
-# ── text normalisation ─────────────────────────────────────────────────────
-
-_VERSE_NUM = re.compile(r"^\d+\s+")
-_REFS      = re.compile(r"[\+\*]")
-_SPACES    = re.compile(r"\s+")
-
-
-def _clean_en(text: str) -> str:
-    text = _VERSE_NUM.sub("", str(text).strip())
-    text = _REFS.sub("", text).lower()
-    return _SPACES.sub(" ", text).strip()
-
-
-def _clean_am(text: str) -> str:
-    text = _VERSE_NUM.sub("", str(text).strip())
-    text = _REFS.sub("", text)
-    return _SPACES.sub(" ", unicodedata.normalize("NFC", text)).strip()
-
-
-# ── corpus helpers ─────────────────────────────────────────────────────────
-
-def _load_corpus() -> list[tuple[str, str]]:
-    df = pd.read_csv(_CORPUS_PATH).dropna()
-    return [
-        (_clean_en(e), _clean_am(a))
-        for e, a in zip(df["English"], df["Amharic"])
-        if str(e).strip() and str(a).strip()
-    ]
-
-
-def _build_word_dict(pairs: list[tuple[str, str]]) -> dict[str, str]:
-    co: dict[str, defaultdict[str, int]] = defaultdict(lambda: defaultdict(int))
-    for en_sent, am_sent in pairs:
-        for ew in set(en_sent.split()):
-            for aw in am_sent.split():
-                co[ew][aw] += 1
-    return {ew: max(counts, key=counts.get) for ew, counts in co.items()}
-
-
-def _build_tfidf(en_sentences: list[str]):
-    from sklearn.feature_extraction.text import TfidfVectorizer
-    vec = TfidfVectorizer(ngram_range=(1, 2), min_df=1, max_features=50_000)
-    return vec, vec.fit_transform(en_sentences)
-
-
-# ── Engine ─────────────────────────────────────────────────────────────────
 
 class TranslationEngine:
     def __init__(self):
-        self._ready          = False
-        self._mode           = None   # "neural" or "corpus"
-        # neural
-        self._tokenizer      = None
-        self._model          = None
-        # corpus fallback
-        self._pairs: list[tuple[str, str]] = []
-        self._vectorizer     = None
-        self._tfidf_mat      = None
-        self._word_dict: dict[str, str] = {}
+        # one (tokenizer, model) pair per direction, loaded on demand
+        self._loaded: dict[str, tuple] = {}
 
-    # -- loading -----------------------------------------------------------
-
-    def load(self) -> None:
-        if self._ready:
-            return
-        if self._try_load_neural():
-            self._mode = "neural"
-            print("[translator] Neural model ready (Helsinki-NLP/opus-mt-en-am).")
-        else:
-            self._mode = "corpus"
-            self._load_corpus_index()
-        self._ready = True
-
-    def _try_load_neural(self) -> bool:
-        try:
+    def _get(self, direction: str):
+        if direction not in MODELS:
+            raise ValueError(f"Unknown direction: {direction!r}")
+        if direction not in self._loaded:
             from transformers import MarianMTModel, MarianTokenizer
-            model_name = "Helsinki-NLP/opus-mt-en-am"
-            print("[translator] Loading neural model (first run downloads ~300 MB) …")
-            self._tokenizer = MarianTokenizer.from_pretrained(model_name)
-            self._model     = MarianMTModel.from_pretrained(model_name)
-            return True
-        except Exception as exc:
-            print(f"[translator] Neural model unavailable ({exc}). Using corpus fallback.")
-            return False
+            name = MODELS[direction]
+            print(f"[translator] Loading {name} (first run downloads ~300 MB) …")
+            tok = MarianTokenizer.from_pretrained(name)
+            mdl = MarianMTModel.from_pretrained(name)
+            self._loaded[direction] = (tok, mdl)
+            print(f"[translator] {direction} model ready.")
+        return self._loaded[direction]
 
-    def _load_corpus_index(self) -> None:
-        if _CACHE_PATH.exists():
-            print("[translator] Loading cached corpus index …")
-            try:
-                with open(_CACHE_PATH, "rb") as f:
-                    data = pickle.load(f)
-                self._pairs      = data["pairs"]
-                self._vectorizer = data["vectorizer"]
-                self._tfidf_mat  = data["tfidf_mat"]
-                self._word_dict  = data["word_dict"]
-                return
-            except Exception:
-                print("[translator] Cache invalid, rebuilding …")
+    def translate(self, text: str, direction: str = "en-am") -> dict:
+        """
+        direction: "en-am" (English→Amharic) or "am-en" (Amharic→English).
+        Returns: {direction, source_lang, target_lang, original, translation}.
+        """
+        src_lang, tgt_lang = DIRECTION_LABELS.get(direction, ("", ""))
+        text = (text or "").strip()
+        if not text:
+            return {"direction": direction, "source_lang": src_lang,
+                    "target_lang": tgt_lang, "original": text, "translation": ""}
 
-        print("[translator] Building corpus index from scratch …")
-        self._pairs = _load_corpus()
-        en_sents    = [p[0] for p in self._pairs]
-        print(f"[translator] TF-IDF over {len(en_sents):,} sentences …")
-        self._vectorizer, self._tfidf_mat = _build_tfidf(en_sents)
-        print("[translator] Building word dictionary …")
-        self._word_dict = _build_word_dict(self._pairs)
-        _CACHE_PATH.parent.mkdir(parents=True, exist_ok=True)
-        with open(_CACHE_PATH, "wb") as f:
-            pickle.dump({
-                "pairs":      self._pairs,
-                "vectorizer": self._vectorizer,
-                "tfidf_mat":  self._tfidf_mat,
-                "word_dict":  self._word_dict,
-            }, f)
-        print("[translator] Corpus index cached.")
-
-    # -- translation -------------------------------------------------------
-
-    def translate(self, text: str) -> dict:
-        self.load()
-        return self._neural(text) if self._mode == "neural" else self._corpus(text)
-
-    def _neural(self, text: str) -> dict:
         import torch
-        inputs = self._tokenizer(
-            [text], return_tensors="pt", padding=True, truncation=True, max_length=512
-        )
+        tok, mdl = self._get(direction)
+        inputs = tok([text], return_tensors="pt", padding=True,
+                     truncation=True, max_length=512)
         with torch.no_grad():
-            out_ids = self._model.generate(**inputs, num_beams=4, max_length=256)
-        translation = self._tokenizer.decode(out_ids[0], skip_special_tokens=True)
-        return {"method": "neural", "translation": translation, "score": 1.0, "matched_en": ""}
+            out_ids = mdl.generate(**inputs, num_beams=4, max_length=256)
+        translation = tok.decode(out_ids[0], skip_special_tokens=True)
 
-    def _corpus(self, text: str) -> dict:
-        query = _clean_en(text)
-        if not query:
-            return {"method": "error", "translation": "", "score": 0.0, "matched_en": ""}
-
-        for en, am in self._pairs:
-            if en == query:
-                return {"method": "exact", "translation": am, "score": 1.0, "matched_en": en}
-
-        from sklearn.metrics.pairwise import cosine_similarity
-        q_vec  = self._vectorizer.transform([query])
-        sims   = cosine_similarity(q_vec, self._tfidf_mat)[0]
-        best_i = int(np.argmax(sims))
-        score  = float(sims[best_i])
-
-        if score >= 0.20:
-            en, am = self._pairs[best_i]
-            return {"method": "memory", "translation": am,
-                    "score": round(score, 3), "matched_en": en}
-
-        am_words    = [self._word_dict[w] for w in query.split() if w in self._word_dict]
-        translation = " ".join(am_words) if am_words else "(no translation found)"
-        return {"method": "word-lookup", "translation": translation,
-                "score": round(score, 3), "matched_en": ""}
+        return {"direction": direction, "source_lang": src_lang,
+                "target_lang": tgt_lang, "original": text, "translation": translation}
 
 
 engine = TranslationEngine()
