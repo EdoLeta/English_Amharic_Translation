@@ -19,6 +19,14 @@
     <div class="alert alert-error">{{ error }}</div>
     {% endif %}
 
+    {% if api_key_missing %}
+    <div class="alert alert-warn">
+      <strong>Setup needed:</strong> set the <code>GOOGLE_TRANSLATE_API_KEY</code>
+      environment variable to your Google Cloud Translation API key, then restart
+      the app. See <code>README.md</code> for steps.
+    </div>
+    {% endif %}
+
     <div class="card">
       <form action="/translate" method="POST">
         <div class="direction-toggle">

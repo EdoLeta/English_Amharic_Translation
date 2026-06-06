@@ -1,5 +1,3 @@
 flask
 gunicorn
-transformers>=4.30.0
-sentencepiece
-torch
+requests
