@@ -4,7 +4,6 @@ pandas
 numpy
 scikit-learn
 scipy
-# optional: install below for neural translation via Helsinki-NLP/opus-mt-en-am
-# transformers>=4.30.0
-# sentencepiece
-# torch
+transformers>=4.30.0
+sentencepiece
+torch

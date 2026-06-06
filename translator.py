@@ -1,16 +1,15 @@
 """
-Offline English→Amharic translation engine.
+English→Amharic translation engine.
 
-Pipeline:
-  1. Exact match against the 31 K Bible corpus.
-  2. TF-IDF cosine-similarity "Translation Memory" — nearest English sentence.
-  3. Word co-occurrence dictionary fallback for very dissimilar queries.
+Primary:  Helsinki-NLP/opus-mt-en-am  (MarianMT neural model via transformers)
+Fallback: TF-IDF translation memory on the 31 K Bible corpus, used only
+          when transformers / torch are not installed.
 
-Models are built once and cached to disk so subsequent starts are fast.
+Install for neural translation:
+    pip3 install transformers sentencepiece torch
 """
 
 from __future__ import annotations
-import os
 import re
 import unicodedata
 import pickle
@@ -43,113 +42,128 @@ def _clean_am(text: str) -> str:
     return _SPACES.sub(" ", unicodedata.normalize("NFC", text)).strip()
 
 
-# ── corpus loading ─────────────────────────────────────────────────────────
+# ── corpus helpers ─────────────────────────────────────────────────────────
 
 def _load_corpus() -> list[tuple[str, str]]:
     df = pd.read_csv(_CORPUS_PATH).dropna()
-    pairs = [
+    return [
         (_clean_en(e), _clean_am(a))
         for e, a in zip(df["English"], df["Amharic"])
         if str(e).strip() and str(a).strip()
     ]
-    return pairs
 
-
-# ── word co-occurrence dictionary ─────────────────────────────────────────
-# For each English word, store the single most-common Amharic word that
-# appears in paired sentences. Memory: O(|en_vocab| × constant).
 
 def _build_word_dict(pairs: list[tuple[str, str]]) -> dict[str, str]:
     co: dict[str, defaultdict[str, int]] = defaultdict(lambda: defaultdict(int))
     for en_sent, am_sent in pairs:
-        en_words = set(en_sent.split())
-        am_words = am_sent.split()
-        for ew in en_words:
-            for aw in am_words:
+        for ew in set(en_sent.split()):
+            for aw in am_sent.split():
                 co[ew][aw] += 1
+    return {ew: max(counts, key=counts.get) for ew, counts in co.items()}
 
-    return {ew: max(aw_counts, key=aw_counts.get)
-            for ew, aw_counts in co.items()}
-
-
-# ── TF-IDF translation memory ──────────────────────────────────────────────
 
 def _build_tfidf(en_sentences: list[str]):
     from sklearn.feature_extraction.text import TfidfVectorizer
     vec = TfidfVectorizer(ngram_range=(1, 2), min_df=1, max_features=50_000)
-    mat = vec.fit_transform(en_sentences)
-    return vec, mat
+    return vec, vec.fit_transform(en_sentences)
 
 
 # ── Engine ─────────────────────────────────────────────────────────────────
 
 class TranslationEngine:
     def __init__(self):
-        self._ready       = False
+        self._ready          = False
+        self._mode           = None   # "neural" or "corpus"
+        # neural
+        self._tokenizer      = None
+        self._model          = None
+        # corpus fallback
         self._pairs: list[tuple[str, str]] = []
-        self._vectorizer  = None
-        self._tfidf_mat   = None
+        self._vectorizer     = None
+        self._tfidf_mat      = None
         self._word_dict: dict[str, str] = {}
 
     # -- loading -----------------------------------------------------------
 
-    def load(self, force_rebuild: bool = False) -> None:
+    def load(self) -> None:
         if self._ready:
             return
-
-        if not force_rebuild and _CACHE_PATH.exists():
-            print("[translator] Loading cached index …")
-            with open(_CACHE_PATH, "rb") as f:
-                data = pickle.load(f)
-            self._pairs      = data["pairs"]
-            self._vectorizer = data["vectorizer"]
-            self._tfidf_mat  = data["tfidf_mat"]
-            self._word_dict  = data["word_dict"]
+        if self._try_load_neural():
+            self._mode = "neural"
+            print("[translator] Neural model ready (Helsinki-NLP/opus-mt-en-am).")
         else:
-            print("[translator] Building translation index from corpus …")
-            self._pairs = _load_corpus()
-            en_sents    = [p[0] for p in self._pairs]
-
-            print(f"[translator] Building TF-IDF index ({len(en_sents):,} sentences) …")
-            self._vectorizer, self._tfidf_mat = _build_tfidf(en_sents)
-
-            print("[translator] Building word co-occurrence dictionary …")
-            self._word_dict = _build_word_dict(self._pairs)
-
-            print("[translator] Saving cache …")
-            _CACHE_PATH.parent.mkdir(parents=True, exist_ok=True)
-            with open(_CACHE_PATH, "wb") as f:
-                pickle.dump({
-                    "pairs":      self._pairs,
-                    "vectorizer": self._vectorizer,
-                    "tfidf_mat":  self._tfidf_mat,
-                    "word_dict":  self._word_dict,
-                }, f)
-            print("[translator] Cache saved.")
-
+            self._mode = "corpus"
+            self._load_corpus_index()
         self._ready = True
+
+    def _try_load_neural(self) -> bool:
+        try:
+            from transformers import MarianMTModel, MarianTokenizer
+            model_name = "Helsinki-NLP/opus-mt-en-am"
+            print("[translator] Loading neural model (first run downloads ~300 MB) …")
+            self._tokenizer = MarianTokenizer.from_pretrained(model_name)
+            self._model     = MarianMTModel.from_pretrained(model_name)
+            return True
+        except Exception as exc:
+            print(f"[translator] Neural model unavailable ({exc}). Using corpus fallback.")
+            return False
+
+    def _load_corpus_index(self) -> None:
+        if _CACHE_PATH.exists():
+            print("[translator] Loading cached corpus index …")
+            try:
+                with open(_CACHE_PATH, "rb") as f:
+                    data = pickle.load(f)
+                self._pairs      = data["pairs"]
+                self._vectorizer = data["vectorizer"]
+                self._tfidf_mat  = data["tfidf_mat"]
+                self._word_dict  = data["word_dict"]
+                return
+            except Exception:
+                print("[translator] Cache invalid, rebuilding …")
+
+        print("[translator] Building corpus index from scratch …")
+        self._pairs = _load_corpus()
+        en_sents    = [p[0] for p in self._pairs]
+        print(f"[translator] TF-IDF over {len(en_sents):,} sentences …")
+        self._vectorizer, self._tfidf_mat = _build_tfidf(en_sents)
+        print("[translator] Building word dictionary …")
+        self._word_dict = _build_word_dict(self._pairs)
+        _CACHE_PATH.parent.mkdir(parents=True, exist_ok=True)
+        with open(_CACHE_PATH, "wb") as f:
+            pickle.dump({
+                "pairs":      self._pairs,
+                "vectorizer": self._vectorizer,
+                "tfidf_mat":  self._tfidf_mat,
+                "word_dict":  self._word_dict,
+            }, f)
+        print("[translator] Corpus index cached.")
 
     # -- translation -------------------------------------------------------
 
     def translate(self, text: str) -> dict:
-        """
-        Returns:
-          method       – "exact" | "memory" | "word-lookup"
-          translation  – Amharic string
-          score        – float 0-1
-          matched_en   – the corpus English sentence that was matched
-        """
         self.load()
+        return self._neural(text) if self._mode == "neural" else self._corpus(text)
+
+    def _neural(self, text: str) -> dict:
+        import torch
+        inputs = self._tokenizer(
+            [text], return_tensors="pt", padding=True, truncation=True, max_length=512
+        )
+        with torch.no_grad():
+            out_ids = self._model.generate(**inputs, num_beams=4, max_length=256)
+        translation = self._tokenizer.decode(out_ids[0], skip_special_tokens=True)
+        return {"method": "neural", "translation": translation, "score": 1.0, "matched_en": ""}
+
+    def _corpus(self, text: str) -> dict:
         query = _clean_en(text)
         if not query:
             return {"method": "error", "translation": "", "score": 0.0, "matched_en": ""}
 
-        # 1. exact match
         for en, am in self._pairs:
             if en == query:
                 return {"method": "exact", "translation": am, "score": 1.0, "matched_en": en}
 
-        # 2. TF-IDF nearest neighbour
         from sklearn.metrics.pairwise import cosine_similarity
         q_vec  = self._vectorizer.transform([query])
         sims   = cosine_similarity(q_vec, self._tfidf_mat)[0]
@@ -161,8 +175,7 @@ class TranslationEngine:
             return {"method": "memory", "translation": am,
                     "score": round(score, 3), "matched_en": en}
 
-        # 3. word co-occurrence fallback
-        am_words = [self._word_dict[w] for w in query.split() if w in self._word_dict]
+        am_words    = [self._word_dict[w] for w in query.split() if w in self._word_dict]
         translation = " ".join(am_words) if am_words else "(no translation found)"
         return {"method": "word-lookup", "translation": translation,
                 "score": round(score, 3), "matched_en": ""}

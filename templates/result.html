@@ -35,7 +35,9 @@
       {% endif %}
 
       <div class="method-badge method-{{ method }}">
-        {% if method == "exact" %}
+        {% if method == "neural" %}
+          ✦ Neural translation (Helsinki-NLP/opus-mt-en-am)
+        {% elif method == "exact" %}
           ✓ Exact match in corpus
         {% elif method == "memory" %}
           ~ Translation memory ({{ "%.0f"|format(score * 100) }}% match)
