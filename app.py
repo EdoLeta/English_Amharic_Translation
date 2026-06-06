@@ -1,55 +1,47 @@
-from flask import Flask,render_template,url_for,request
-import pandas as pd 
-import pickle
-import pandas as pd
-import numpy as np
-from keras.preprocessing.sequence import pad_sequences
-from keras.models import load_model
+import os
+from flask import Flask, render_template, request
+from translator import engine, DIRECTION_LABELS
+
+app = Flask(__name__)
+
+VALID_DIRECTIONS = set(DIRECTION_LABELS.keys())
 
 
-# app = Flask(__name__)
-
-# @app.route('/')
-# def home():
-# 	return render_template('home.html')
-
-# @app.route('/predict',methods=['POST'])
-# def predict():
-# 	model= load_model(spam_classifier.h5)
-# 	tokenizer = pickle.load("tokenizer.pkl")
-# 	if request.method == 'POST':
-# 		message = request.form['message']
-# 		data = [message]
-# 		X = tokenizer.texts_to_sequences(data)
-# 		X = pad_sequences(X, maxlen=100)
-# 		my_prediction = model.predict_classes(X).flatten()[0]
-# 	return render_template('result.html',prediction = my_prediction)
+def _api_key_set() -> bool:
+    return bool(os.environ.get("GOOGLE_TRANSLATE_API_KEY", "").strip())
 
 
+@app.route("/", methods=["GET"])
+def home():
+    return render_template("main.html", direction="en-am",
+                           api_key_missing=not _api_key_set())
 
-# if __name__ == '__main__':
-# 	app.run(debug=True)
 
-@app.route('/translate', methods=['POST', 'GET'])
+@app.route("/translate", methods=["GET", "POST"])
 def get_translation():
-    if request.method == 'POST':
- 
-        result = request.form
-        # Get the English sentence from the Input site
-        engSentence = str(result['input_text'])
-        # Converting the text into the required format for prediction
-        # Step 1 : Converting to an array
-        engAr = [engSentence]
-        # Clean the input sentence
-        cleanText = cleanInput(engAr)
-        # Step 2 : Converting to sequences and padding them
-        # Encode the inputsentence as sequence of integers
-        seq1 = encode_sequences(Eng_tokenizer, int(Eng_stdlen), cleanText)
-        # Step 3 : Get the translation
-        translation = generatePredictions(model,Amh_tokenizer,seq1)
-        # prediction = model.predict(seq1,verbose=0)[0]
- 
-        return render_template('result.html', trans=translation)
+    if request.method != "POST":
+        return render_template("main.html", direction="en-am",
+                               api_key_missing=not _api_key_set())
 
-if __name__ == '__main__':
-	app.run(debug=True)
+    direction = request.form.get("direction", "en-am")
+    if direction not in VALID_DIRECTIONS:
+        direction = "en-am"
+
+    text = request.form.get("input_text", "").strip()
+    if not text:
+        return render_template("main.html", direction=direction,
+                               api_key_missing=not _api_key_set(),
+                               error="Please enter some text to translate.")
+
+    try:
+        result = engine.translate(text, direction=direction)
+    except Exception as exc:
+        return render_template("main.html", direction=direction,
+                               api_key_missing=not _api_key_set(),
+                               error=str(exc))
+
+    return render_template("result.html", **result)
+
+
+if __name__ == "__main__":
+    app.run(debug=True)

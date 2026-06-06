@@ -1,52 +1,70 @@
-<!-- <!DOCTYPE html> 
-<html>
+<!DOCTYPE html>
+<html lang="en">
 <head>
-	<title>Home</title>
-	<link rel="stylesheet" type="text/css" href="../static/css/styles.css">
-	<link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='css/styles.css') }}">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>English ↔ Amharic Translator</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}" />
 </head>
 <body>
+  <header>
+    <div class="container">
+      <div id="brandname">English ↔ Amharic Translator</div>
+      <h2>Neural Machine Translation</h2>
+    </div>
+  </header>
 
-	<header>
-		<div class="container">
-		<div id="brandname">
-			Machine Learning App with Flask
-		</div>
-		<h2>Spam Detector For Emails</h2>
-		
-	</div>
-	</header>
+  <main class="container">
+    {% if error %}
+    <div class="alert alert-error">{{ error }}</div>
+    {% endif %}
 
-	<div class="ml-container">
+    {% if api_key_missing %}
+    <div class="alert alert-warn">
+      <strong>Setup needed:</strong> set the <code>GOOGLE_TRANSLATE_API_KEY</code>
+      environment variable to your Google Cloud Translation API key, then restart
+      the app. See <code>README.md</code> for steps.
+    </div>
+    {% endif %}
 
-		<form action="{{ url_for('predict')}}" method="POST">
-		<p>Enter Your email Here</p>
-			<input type="text" name="comment"/>
-		<textarea name="Emails" rows="4" cols="50"></textarea>
-		<br/>
+    <div class="card">
+      <form action="/translate" method="POST">
+        <div class="direction-toggle">
+          <label class="radio {{ 'active' if direction != 'am-en' else '' }}">
+            <input type="radio" name="direction" value="en-am"
+                   {{ 'checked' if direction != 'am-en' else '' }} />
+            English → Amharic
+          </label>
+          <label class="radio {{ 'active' if direction == 'am-en' else '' }}">
+            <input type="radio" name="direction" value="am-en"
+                   {{ 'checked' if direction == 'am-en' else '' }} />
+            Amharic → English
+          </label>
+        </div>
 
-		<input type="submit" class="btn-info" value="predict">
-		
-	</form>		
-	</div>
+        <label for="input_text">Enter text:</label>
+        <textarea
+          id="input_text"
+          name="input_text"
+          rows="4"
+          placeholder="Type your sentence here…"
+        ></textarea>
 
-</body>
-</html> -->
+        <button type="submit" class="btn-primary">Translate →</button>
+      </form>
+    </div>
+  </main>
 
-
-<!DOCTYPE html>
- 
-<html>
-<title>Machine Translation APP</title>
-<body>
-<form action = "/translate" method= "POST">
- 
-    <h3> English Sentence: </h3>
- 
-    <th> <input name='input_text' type="text" value = " " /> </th>
- 
-    <p><input type = "submit" value = "submit" /></p>
- 
-</form>
+  <script>
+    // visually highlight the selected direction
+    document.querySelectorAll('.direction-toggle input').forEach(function (input) {
+      input.addEventListener('change', function () {
+        document.querySelectorAll('.direction-toggle .radio').forEach(function (l) {
+          l.classList.remove('active');
+        });
+        this.closest('.radio').classList.add('active');
+      });
+    });
+  </script>
 </body>
 </html>

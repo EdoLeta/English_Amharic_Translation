@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Translation Result</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}" />
+</head>
+<body>
+  <header>
+    <div class="container">
+      <div id="brandname">English ↔ Amharic Translator</div>
+      <h2>Translation Result</h2>
+    </div>
+  </header>
+
+  <main class="container">
+    <div class="card">
+
+      <div class="result-block">
+        <h4 class="result-label">{{ source_lang }} (Original)</h4>
+        <p class="result-text {{ 'amharic' if source_lang == 'Amharic' else '' }}">{{ original }}</p>
+      </div>
+
+      <div class="result-block result-block--target">
+        <h4 class="result-label">{{ target_lang }} Translation</h4>
+        <p class="result-text {{ 'amharic' if target_lang == 'Amharic' else '' }}">{{ translation }}</p>
+      </div>
+
+      <div class="method-badge method-neural">
+        ✦ Powered by Google Cloud Translation
+      </div>
+
+      <a href="/" class="btn-secondary">← Translate another sentence</a>
+    </div>
+  </main>
+</body>
+</html>
